@@ -213,9 +213,49 @@
 
         const modal = document.getElementById('imageModal');
         const modalImg = document.getElementById('modalImage');
-        function openModal(src) { modal.style.display = "flex"; modalImg.src = src; }
+
+        // 사진 크게 보기 (모달) 함수
+        function openModal(src) { 
+            modal.style.display = "flex"; 
+            modalImg.src = src; 
+            
+            // 안내 문구 생성 (원본 구매 유도)
+            let infoText = modal.querySelector('.contact-info');
+            if(!infoText) {
+                infoText = document.createElement('p');
+                infoText.className = 'contact-info';
+                modal.appendChild(infoText);
+            }
+            
+            // 문구 스타일 및 내용 설정
+            infoText.style.cssText = "color: white; margin-top: 20px; font-size: 0.9em; opacity: 0.8; text-align: center; position: absolute; bottom: 30px;";
+            infoText.innerHTML = `© MOA Archive. 원본 구매 문의: <a href="mailto:alwzsoft@gmail.com" style="color: #9FA8DA; text-decoration: none;">alwzsoft@gmail.com</a>`;
+        }
+
+        // 모달 닫기 기능
         document.querySelector('.close').onclick = () => modal.style.display = "none";
         window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; }
+
+        // --- 강력 보안 설정 (우클릭 및 개발자 도구 방지) ---
+        
+        // 1. 우클릭 금지
+        document.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            alert('저작권 보호를 위해 우클릭을 금지합니다.');
+        });
+
+        // 2. 키보드 보안 (F12, Ctrl+Shift+I 등 방지)
+        document.addEventListener('keydown', e => {
+            if (e.keyCode === 123 || 
+                (e.ctrlKey && e.shiftKey && [73, 74, 67].includes(e.keyCode)) ||
+                (e.ctrlKey && e.keyCode === 85)) {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // 3. 드래그 방지
+        document.onselectstart = () => false;
 
         // 첫 로드 설정
         document.addEventListener('DOMContentLoaded', () => {
