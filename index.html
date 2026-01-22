@@ -81,6 +81,19 @@
         .close { position: absolute; top: 30px; right: 40px; font-size: 30px; color: var(--text-color); cursor: pointer; }
 
         footer { text-align: center; padding: 80px 20px; font-size: 0.85em; opacity: 0.6; }
+
+        /* 사진 무단 저장 방지용 레이어 효과 */
+        .feature-card img, .modal-content {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        /* 모달 배경을 더 어둡게 하여 사진에 집중 */
+        .modal {
+            background: rgba(0, 0, 0, 0.9) !important;
+        }
     </style>
 </head>
 <body>
