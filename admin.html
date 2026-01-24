@@ -3,33 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moa Admin - AI Smart Editor</title>
+    <title>Moa Art Registry - AI Curator</title>
     <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
     <style>
-        :root { --primary: #6b705c; --bg: #f8f9fa; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: #333; padding: 20px; line-height: 1.6; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h2 { text-align: center; color: var(--primary); margin-bottom: 30px; letter-spacing: -1px; }
-        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 8px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; color: #555; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; font-size: 14px; }
-        button { width: 100%; padding: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        :root { --primary: #6b705c; --bg: #f8f9fa; --accent: #b7b7a4; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: #333; padding: 20px; line-height: 1.7; }
+        .container { max-width: 650px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: var(--primary); font-weight: 300; letter-spacing: 2px; margin-bottom: 40px; }
+        .section { margin-bottom: 30px; padding: 20px; border: 1px solid #f0f0f0; border-radius: 10px; }
+        label { display: block; margin-bottom: 10px; font-weight: 600; font-size: 0.9em; color: var(--primary); }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; margin-bottom: 15px; font-size: 14px; outline: none; }
+        input:focus { border-color: var(--primary); }
+        button { width: 100%; padding: 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         
-        .ai-box { background: #fdfdfd; border: 2px dashed #e9ecef; margin-bottom: 25px; }
-        .btn-ai { background: #4a4e69; color: white; margin-top: 5px; }
+        .btn-ai { background: #4a4e69; color: white; margin-bottom: 10px; }
         .btn-ai:hover { background: #22223b; }
-        
-        .btn-submit { background: var(--primary); color: white; margin-top: 10px; font-size: 1.1em; height: 55px; }
+        .btn-submit { background: var(--primary); color: white; font-size: 1.1em; }
         .btn-submit:hover { background: #585d4d; }
         
-        #preview { width: 100%; border-radius: 8px; margin-top: 10px; display: none; border: 1px solid #eee; }
-        .proposal-card { background: white; padding: 15px; margin-top: 10px; border-radius: 8px; cursor: pointer; font-size: 0.9em; border: 1px solid #dee2e6; transition: all 0.2s ease; }
-        .proposal-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
-        .proposal-card strong { color: var(--primary); display: block; margin-bottom: 4px; }
+        #preview { width: 100%; border-radius: 8px; margin-top: 15px; display: none; filter: grayscale(20%); }
+        .proposal-card { background: #fff; padding: 20px; margin-top: 15px; border-radius: 8px; cursor: pointer; border: 1px solid #eee; transition: 0.2s; }
+        .proposal-card:hover { border-color: var(--primary); box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .proposal-card strong { display: block; font-size: 1.1em; color: var(--primary); margin-bottom: 8px; }
+        .proposal-card p { font-size: 0.95em; color: #666; margin: 0; word-break: keep-all; }
         
-        #status { font-size: 0.85em; text-align: center; margin-top: 20px; color: #666; min-height: 1.5em; padding: 10px; border-radius: 4px; }
-        .loading { color: var(--primary); font-weight: bold; animation: blink 1.5s infinite; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        #status { font-size: 0.85em; text-align: center; margin-top: 25px; color: #888; min-height: 1.5em; }
     </style>
 </head>
 <body>
@@ -38,34 +36,33 @@
     <h2>Moa Art Registry</h2>
 
     <div class="section">
-        <label>1. 사진 선택</label>
+        <label>📸 오늘의 시선 기록</label>
         <input type="file" id="photoInput" accept="image/*">
-        <img id="preview" alt="미리보기">
+        <img id="preview">
     </div>
 
-    <div id="aiSection" class="section ai-box" style="display:none;">
-        <label>2. AI 감성 큐레이션 (선택)</label>
-        <input type="password" id="geminiKey" placeholder="Gemini API Key를 입력해 주세요">
-        <button class="btn-ai" onclick="askGemini()">✨ AI에게 문구 3개 제안받기</button>
+    <div id="aiSection" class="section" style="display:none;">
+        <label>✨ AI 감성 큐레이션</label>
+        <input type="password" id="geminiKey" placeholder="Gemini API Key를 입력하세요">
+        <button class="btn-ai" onclick="askGemini()">이미지 분석 및 문구 제안</button>
         <div id="proposals"></div>
     </div>
 
     <div class="section">
-        <label>3. 상세 정보 확인</label>
-        <input type="text" id="title" placeholder="제목을 입력하거나 AI 제안을 선택하세요">
-        <input type="text" id="tags" placeholder="태그 (쉼표로 구분 예: 풍경, 여행, 오후)">
-        <textarea id="description" rows="3" placeholder="사진에 담긴 짧은 문장을 기록해 주세요"></textarea>
+        <label>🖋️ 상세 기록</label>
+        <input type="text" id="title" placeholder="제목 (신리 성지 sinri-seonji)">
+        <input type="text" id="tags" placeholder="태그 (쉼표로 구분)">
+        <textarea id="description" rows="5" placeholder="사진에 담긴 침묵의 순간을 기록합니다."></textarea>
         
-        <label style="margin-top:10px; color: #888;">GitHub 권한 설정</label>
-        <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (ghp_...)">
-        <button class="btn-submit" onclick="handleUpload()">오늘의 시선 등록하기</button>
+        <input type="password" id="ghToken" placeholder="GitHub Access Token">
+        <button class="btn-submit" onclick="handleUpload()">갤러리에 등록하기</button>
     </div>
 
     <div id="status"></div>
 </div>
 
 <script>
-    // 초기 로드 시 기존 키 불러오기
+    // 기존 키 로드
     window.onload = () => {
         document.getElementById('ghToken').value = localStorage.getItem('moa_gh_token') || '';
         document.getElementById('geminiKey').value = localStorage.getItem('moa_gemini_key') || '';
@@ -74,51 +71,43 @@
     const photoInput = document.getElementById('photoInput');
     const preview = document.getElementById('preview');
     let selectedFile = null;
-    let exifData = { lat: null, lon: null };
 
-    // 사진 선택 이벤트
     photoInput.onchange = (e) => {
         selectedFile = e.target.files[0];
         if (!selectedFile) return;
-
         const reader = new FileReader();
         reader.onload = (ex) => {
             preview.src = ex.target.result;
             preview.style.display = 'block';
             document.getElementById('aiSection').style.display = 'block';
-            document.getElementById('proposals').innerHTML = '';
         };
         reader.readAsDataURL(selectedFile);
-
-        // 위치 정보 추출
-        EXIF.getData(selectedFile, function() {
-            const lat = EXIF.getTag(this, "GPSLatitude");
-            const lon = EXIF.getTag(this, "GPSLongitude");
-            if (lat && lon) {
-                exifData.lat = lat[0] + lat[1]/60 + lat[2]/3600;
-                exifData.lon = lon[0] + lon[1]/60 + lon[2]/3600;
-            }
-        });
     };
 
-    // Gemini API 호출
     async function askGemini() {
         const apiKey = document.getElementById('geminiKey').value.trim();
-        if (!apiKey) return alert("Gemini API Key가 필요합니다.");
+        if (!apiKey) return alert("API Key가 필요합니다.");
         localStorage.setItem('moa_gemini_key', apiKey);
 
         const status = document.getElementById('status');
-        status.innerHTML = "<span class='loading'>사진의 분위기를 읽고 있습니다...</span>";
+        status.innerHTML = "<b>매거진의 시선으로 이미지를 해석하는 중...</b>";
 
         try {
             const base64Img = await toBase64(selectedFile);
-            const prompt = `사진의 위치정보(위도:${exifData.lat}, 경도:${exifData.lon})를 참고해서, 
-            갤러리 'Moa'의 컨셉(따뜻함, 정갈함, 기록, 시선)에 어울리는 포스팅 후보 3개를 JSON으로 제안해줘.
-            반드시 다음 JSON 형식으로만 답변해:
-            {"proposals": [{"title": "제목", "tags": "태그1, 태그2", "desc": "감성 문구"}]}`;
+            
+            // 🌟 사용자 맞춤형 프롬프트: 한국적 미 + 은유적 문장 + 영어 병기
+            const prompt = `이 사진을 보고 이미지 매거진 'Moa'의 감성으로 큐레이션해줘. 
+            컨셉: 한국적인 미, 정결함, 고요한 질서, 침묵의 순간, 따뜻함.
+            요청 사항:
+            1. 문장: 설명보다는 은유적이고 비유적인 시적인 문체로 작성할 것 (분량은 150자 내외). 영어로도 동일한 감성을 유지한 번역을 포함할 것.
+            2. 제목: 한국어 제목 옆에 발음 그대로의 영어 표기를 병기할 것 (예: 신리 성지 sinri-seonji).
+            3. 태그: 한국어와 영어 태그를 섞어서 5개 이상 제안할 것.
+            
+            반드시 아래 JSON 형식으로만 답변할 것:
+            {"proposals": [{"title": "제목 (영어발음)", "tags": "태그, tag", "desc": "한글 시적 문장\\n\\nEnglish poetic description"}]}`;
 
-            // 🌟 수정된 부분: v1 경로 사용 + 모델명 정규화
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            // 검증된 gemini-2.0-flash 모델 사용
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -129,24 +118,22 @@
                 })
             });
 
-            // 응답 상태 체크 추가
-            if (!response.ok) {
-                const errorBody = await response.json();
-                throw new Error(`API 응답 에러 (${response.status}): ${errorBody.error.message}`);
+            const resData = await response.json();
+            if (resData.error) {
+                if(resData.error.code === 429) throw new Error("할당량이 초과되었습니다. 1분만 기다려주세요.");
+                throw new Error(resData.error.message);
             }
 
-            const resData = await response.json();
             const textResponse = resData.candidates[0].content.parts[0].text;
             const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
             const cleanJson = JSON.parse(jsonMatch[0]);
             
             displayProposals(cleanJson.proposals);
-            status.textContent = "가장 마음에 드는 시선을 선택해 주세요.";
+            status.textContent = "가장 깊이 닿는 문장을 선택해 주세요.";
         } catch (err) {
-            console.error(err);
-            status.textContent = "AI 오류: " + err.message;
+            status.textContent = "오류: " + err.message;
         }
-}
+    }
 
     function displayProposals(proposals) {
         const container = document.getElementById('proposals');
@@ -154,7 +141,7 @@
         proposals.slice(0, 3).forEach(p => {
             const div = document.createElement('div');
             div.className = 'proposal-card';
-            div.innerHTML = `<strong>${p.title}</strong><span>${p.desc}</span>`;
+            div.innerHTML = `<strong>${p.title}</strong><p>${p.desc.replace(/\n/g, '<br>')}</p>`;
             div.onclick = () => {
                 document.getElementById('title').value = p.title;
                 document.getElementById('tags').value = p.tags;
@@ -167,11 +154,11 @@
 
     async function handleUpload() {
         const token = document.getElementById('ghToken').value.trim();
-        if (!token || !selectedFile) return alert("GitHub 토큰과 사진이 필요합니다.");
+        if (!token || !selectedFile) return alert("필수 항목을 확인해 주세요.");
         localStorage.setItem('moa_gh_token', token);
 
         const status = document.getElementById('status');
-        status.innerHTML = "<span class='loading'>GitHub 저장소에 기록을 남기는 중...</span>";
+        status.textContent = "기록을 저장소에 새기는 중...";
 
         const repo = "alwzsoft/source_only";
         const fileName = Date.now() + ".jpg";
@@ -181,14 +168,14 @@
         try {
             const imgBase64 = (await toBase64(selectedFile)).split(',')[1];
             
-            // 1. 이미지 파일 업로드
+            // 1. 사진 업로드
             await fetch(`https://api.github.com/repos/${repo}/contents/${imgPath}`, {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${token}` },
-                body: JSON.stringify({ message: "New photo upload", content: imgBase64 })
+                body: JSON.stringify({ message: "Add new memory", content: imgBase64 })
             });
 
-            // 2. JSON 데이터 업데이트 (캐시 방지 v 파라미터 추가)
+            // 2. JSON 데이터 업데이트
             const res = await fetch(`https://api.github.com/repos/${repo}/contents/${jsonPath}?v=${Date.now()}`, {
                 headers: { 'Authorization': `token ${token}` }
             });
@@ -204,19 +191,18 @@
                 description: document.getElementById('description').value
             });
 
-            // 한글 처리를 위한 btoa 보강
             const updatedContent = btoa(encodeURIComponent(JSON.stringify(currentList, null, 2)).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
 
             await fetch(`https://api.github.com/repos/${repo}/contents/${jsonPath}`, {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${token}` },
-                body: JSON.stringify({ message: "Update pictures.json", content: updatedContent, sha: fileData.sha })
+                body: JSON.stringify({ message: "Update Gallery Data", content: updatedContent, sha: fileData.sha })
             });
 
-            status.innerHTML = "<b>✅ 등록 성공!</b> 갤러리가 곧 배포됩니다.";
-            setTimeout(() => location.reload(), 2500);
+            status.innerHTML = "<b>✅ 등록 완료. 곧 갤러리에서 만날 수 있습니다.</b>";
+            setTimeout(() => location.reload(), 2000);
         } catch (err) {
-            status.textContent = "업로드 오류가 발생했습니다.";
+            status.textContent = "저장 실패: GitHub 권한이나 경로를 확인하세요.";
         }
     }
 
