@@ -87,7 +87,7 @@
                 </section>
 
                 <footer>
-                    <p>&copy; Copyright © 2026 MOA Archive. All rights reserved.</p>
+                    <p>&copy; Copyright © 2026 MOA. All rights reserved.</p>
                 </footer>
             </div>
 
