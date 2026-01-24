@@ -52,7 +52,7 @@
 
     <div class="form-group">
         <label for="description">설명</label>
-        <textarea id="description" placeholder="Moa's Moment - Someday..."></textarea>
+        <textarea id="description" placeholder="설명을 입력하세요"></textarea>
     </div>
 
     <button id="upload-btn" onclick="handleUpload()">Moa에 등록하기</button>
@@ -60,10 +60,11 @@
 </div>
 
 <script>
-    const repo = "alwzsoft/source_only"; // 사용자님의 저장소명
+    // 1. 저장소 정보 설정
+    const repo = "alwzsoft/source_only"; 
     let selectedFile = null;
 
-    // 이미지 선택 시 미리보기
+    // 이미지 선택 시 미리보기 로직
     document.getElementById('image-upload').onchange = function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -84,6 +85,7 @@
         statusDiv.className = `status-msg ${type}`;
     }
 
+    // 업로드 메인 핸들러
     async function handleUpload() {
         const token = document.getElementById('token').value.trim();
         const title = document.getElementById('title').value.trim();
@@ -100,19 +102,24 @@
             const now = new Date();
             const timestamp = now.getTime();
             const extension = selectedFile.name.split('.').pop();
-            const fileName = `public/picture/${timestamp}.${extension}`;
+            
+            // 💡 경로 수정: gallery/ 폴더 내부로 지정
+            const fileName = `gallery/public/picture/${timestamp}.${extension}`;
 
             const reader = new FileReader();
             reader.readAsArrayBuffer(selectedFile);
             reader.onloadend = async () => {
                 const base64Data = btoa(new Uint8Array(reader.result).reduce((data, byte) => data + String.fromCharCode(byte), ''));
                 
+                // 1. 이미지 업로드
                 const imgRes = await uploadToGithub(token, fileName, base64Data, `Upload: ${title}`);
-                if (!imgRes.ok) throw new Error("이미지 업로드에 실패했습니다.");
+                if (!imgRes.ok) throw new Error("이미지 업로드 실패");
 
                 setStatus("데이터 정보 업데이트 중...");
+                
+                // 2. JSON 데이터 업데이트 (gallery/ 경로 전달)
                 await updateJsonData(token, {
-                    img: fileName.replace('public/', ''),
+                    img: `picture/${timestamp}.${extension}`, // 사이트에서 불러올 때의 상대 경로
                     title: title,
                     tags: tags,
                     description: desc,
@@ -120,79 +127,67 @@
                 });
 
                 setStatus("기록 성공!", "success");
-                alert("성공적으로 등록되었습니다!");
+                alert("성공적으로 등록되었습니다! 잠시 후 홈페이지에 반영됩니다.");
                 location.reload();
             };
         } catch (err) {
             setStatus(`오류: ${err.message}`, "error");
+            console.error(err);
             uploadBtn.disabled = false;
         }
     }
 
+    // GitHub API 호출 공통 함수
     async function uploadToGithub(token, path, content, message, sha = null) {
         const url = `https://api.github.com/repos/${repo}/contents/${path}`;
-        const body = { message, content };
+        const body = { 
+            message, 
+            content,
+            branch: "main" // main 브랜치 고정
+        };
         if (sha) body.sha = sha;
 
         return fetch(url, {
             method: 'PUT',
-            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+            headers: { 
+                'Authorization': `token ${token}`, 
+                'Content-Type': 'application/json' 
+            },
             body: JSON.stringify(body)
         });
     }
 
+    // JSON 데이터 읽어서 수정 후 저장하는 함수
     async function updateJsonData(token, newData) {
-        // 1. 경로 설정 (저장소 루트 기준의 정확한 경로)
-        const path = 'public/data/pictures.json';
-        const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+        // 💡 경로 수정: gallery/ 폴더 내부의 JSON 지정
+        const path = 'gallery/public/data/pictures.json';
+        const url = `https://api.github.com/repos/${repo}/contents/${path}?t=${Date.now()}`;
         
         let currentList = [];
         let sha = null;
 
-        try {
-            // 2. 기존 파일 가져오기 시도 (캐시 방지 타임스탬프 추가)
-            const res = await fetch(`${url}?t=${Date.now()}`, { 
-                headers: { 'Authorization': `token ${token}` } 
-            });
-            
-            if (res.ok) {
-                // 파일이 이미 존재하는 경우
-                const fileData = await res.json();
-                sha = fileData.sha;
-                // UTF-8 디코딩 (한글 깨짐 방지)
-                const currentContent = decodeURIComponent(atob(fileData.content).split('').map(c => 
-                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-                currentList = JSON.parse(currentContent);
-                console.log("기존 데이터를 성공적으로 불러왔습니다.");
-            } else if (res.status === 404) {
-                // 파일이 없는 경우 (새로 생성)
-                console.warn("기존 JSON 파일이 없어 새 파일을 생성합니다.");
-                currentList = [];
-            } else {
-                throw new Error(`GitHub API 응답 오류: ${res.status}`);
-            }
-
-            // 3. 새 데이터 추가 (최신순 정렬을 위해 맨 앞에 추가)
-            currentList.unshift(newData);
-
-            // 4. JSON 인코딩 (UTF-8)
-            const updatedJson = JSON.stringify(currentList, null, 2);
-            const updatedContent = btoa(encodeURIComponent(updatedJson).replace(/%([0-9A-F]{2})/g,
-                (match, p1) => String.fromCharCode('0x' + p1)
-            ));
-
-            // 5. 깃허브에 전송 (sha가 있으면 수정, 없으면 생성)
-            const updateRes = await uploadToGithub(token, path, updatedContent, "Update pictures.json via Admin", sha);
-            
-            if (!updateRes.ok) {
-                const error = await updateRes.json();
-                throw new Error(`저장 실패: ${error.message}`);
-            }
-
-        } catch (err) {
-            console.error("데이터 업데이트 실패:", err);
-            throw err;
+        const res = await fetch(url, { 
+            headers: { 'Authorization': `token ${token}` } 
+        });
+        
+        if (res.ok) {
+            const fileData = await res.json();
+            sha = fileData.sha;
+            // 한글 깨짐 방지 디코딩
+            const currentContent = decodeURIComponent(atob(fileData.content).split('').map(c => 
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+            currentList = JSON.parse(currentContent);
         }
+
+        currentList.unshift(newData); // 최신 데이터를 맨 앞으로
+        
+        // 인코딩 후 저장
+        const updatedJson = JSON.stringify(currentList, null, 2);
+        const updatedContent = btoa(encodeURIComponent(updatedJson).replace(/%([0-9A-F]{2})/g, 
+            (match, p1) => String.fromCharCode('0x' + p1)));
+
+        const updateRes = await uploadToGithub(token, path, updatedContent, "Update pictures.json via Admin", sha);
+        if (!updateRes.ok) throw new Error("JSON 업데이트 실패");
     }
 </script>
 </body>
