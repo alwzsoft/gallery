@@ -142,27 +142,57 @@
     }
 
     async function updateJsonData(token, newData) {
+        // 1. 경로 설정 (저장소 루트 기준의 정확한 경로)
         const path = 'public/data/pictures.json';
-        const url = `https://api.github.com/repos/${repo}/contents/${path}?t=${Date.now()}`;
+        const url = `https://api.github.com/repos/${repo}/contents/${path}`;
         
         let currentList = [];
         let sha = null;
 
-        const res = await fetch(url, { headers: { 'Authorization': `token ${token}` } });
-        
-        if (res.ok) {
-            const fileData = await res.json();
-            sha = fileData.sha;
-            const currentContent = decodeURIComponent(atob(fileData.content).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-            currentList = JSON.parse(currentContent);
+        try {
+            // 2. 기존 파일 가져오기 시도 (캐시 방지 타임스탬프 추가)
+            const res = await fetch(`${url}?t=${Date.now()}`, { 
+                headers: { 'Authorization': `token ${token}` } 
+            });
+            
+            if (res.ok) {
+                // 파일이 이미 존재하는 경우
+                const fileData = await res.json();
+                sha = fileData.sha;
+                // UTF-8 디코딩 (한글 깨짐 방지)
+                const currentContent = decodeURIComponent(atob(fileData.content).split('').map(c => 
+                    '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                currentList = JSON.parse(currentContent);
+                console.log("기존 데이터를 성공적으로 불러왔습니다.");
+            } else if (res.status === 404) {
+                // 파일이 없는 경우 (새로 생성)
+                console.warn("기존 JSON 파일이 없어 새 파일을 생성합니다.");
+                currentList = [];
+            } else {
+                throw new Error(`GitHub API 응답 오류: ${res.status}`);
+            }
+
+            // 3. 새 데이터 추가 (최신순 정렬을 위해 맨 앞에 추가)
+            currentList.unshift(newData);
+
+            // 4. JSON 인코딩 (UTF-8)
+            const updatedJson = JSON.stringify(currentList, null, 2);
+            const updatedContent = btoa(encodeURIComponent(updatedJson).replace(/%([0-9A-F]{2})/g,
+                (match, p1) => String.fromCharCode('0x' + p1)
+            ));
+
+            // 5. 깃허브에 전송 (sha가 있으면 수정, 없으면 생성)
+            const updateRes = await uploadToGithub(token, path, updatedContent, "Update pictures.json via Admin", sha);
+            
+            if (!updateRes.ok) {
+                const error = await updateRes.json();
+                throw new Error(`저장 실패: ${error.message}`);
+            }
+
+        } catch (err) {
+            console.error("데이터 업데이트 실패:", err);
+            throw err;
         }
-
-        currentList.unshift(newData);
-        const updatedJson = JSON.stringify(currentList, null, 2);
-        const updatedContent = btoa(encodeURIComponent(updatedJson).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
-
-        const updateRes = await uploadToGithub(token, path, updatedContent, "Update pictures.json", sha);
-        if (!updateRes.ok) throw new Error("JSON 업데이트 실패");
     }
 </script>
 </body>
