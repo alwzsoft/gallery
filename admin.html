@@ -3,192 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moa Admin - 기록하기</title>
+    <title>Moa Admin - AI Smart Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
     <style>
-        body { font-family: 'Pretendard', -apple-system, system-ui, sans-serif; padding: 20px; background: #f9f8f5; color: #333; }
-        .admin-card { max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        h2 { margin-top: 0; margin-bottom: 20px; text-align: center; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
-        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
-        textarea { height: 100px; resize: vertical; }
-        button { width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #preview-container { margin-top: 20px; text-align: center; display: none; }
-        #preview { max-width: 100%; border-radius: 8px; border: 1px solid #eee; }
-        .status-msg { margin-top: 15px; text-align: center; font-size: 0.9rem; min-height: 1.2rem; }
-        .error { color: #d9534f; }
-        .success { color: #5cb85c; }
+        :root { --primary: #6b705c; --bg: #f8f9fa; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: #333; padding: 20px; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 30px; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 8px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 0.9em; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-ai { background: #e9ecef; color: #495057; margin-bottom: 10px; border: 1px solid #ced4da; }
+        .btn-ai:hover { background: #dee2e6; }
+        .btn-submit { background: var(--primary); color: white; margin-top: 10px; font-size: 1.1em; }
+        #preview { width: 100%; border-radius: 8px; margin-top: 10px; display: none; border: 1px solid #eee; }
+        .proposal-card { background: #f8f9fa; padding: 12px; margin-top: 10px; border-radius: 6px; cursor: pointer; font-size: 0.85em; border: 1px solid #e9ecef; transition: 0.2s; }
+        .proposal-card:hover { border-color: var(--primary); background: #f1f3f5; }
+        #status { font-size: 0.85em; text-align: center; margin-top: 15px; color: #666; min-height: 1.2em; }
+        .loading { color: var(--primary); font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="admin-card">
-    <h2>Moa's Moment 기록</h2>
-    
-    <div class="form-group">
-        <label for="token">GitHub Token</label>
-        <input type="password" id="token" placeholder="ghp_..." autocomplete="current-password">
+<div class="container">
+    <h2>Moa Art Registry</h2>
+
+    <div class="section" style="background: #fffdfa;">
+        <label>설정 (브라우저에 저장됨)</label>
+        <input type="password" id="ghToken" placeholder="GitHub Token (ghp_...)">
+        <input type="password" id="geminiKey" placeholder="Gemini API Key">
     </div>
 
-    <div class="form-group">
-        <label for="image-upload">사진 선택</label>
-        <input type="file" id="image-upload" accept="image/*">
-    </div>
-
-    <div id="preview-container">
+    <div class="section">
+        <label>사진 업로드</label>
+        <input type="file" id="photoInput" accept="image/*">
         <img id="preview">
     </div>
 
-    <div class="form-group">
-        <label for="title">제목</label>
-        <input type="text" id="title" placeholder="사진 제목">
+    <div id="aiSection" style="display:none;">
+        <button class="btn-ai" id="askAiBtn" onclick="askGemini()">✨ AI에게 문구 제안받기 (3개)</button>
+        <div id="proposals"></div>
     </div>
 
-    <div class="form-group">
-        <label for="tags">태그</label>
-        <input type="text" id="tags" placeholder="태그 (쉼표로 구분)">
+    <div class="section">
+        <label>제목</label>
+        <input type="text" id="title" placeholder="제목">
+        <label>태그 (쉼표 구분)</label>
+        <input type="text" id="tags" placeholder="풍경, 산책, 기록">
+        <label>설명(문구)</label>
+        <textarea id="description" rows="3" placeholder="사진의 이야기를 적어주세요."></textarea>
     </div>
 
-    <div class="form-group">
-        <label for="description">설명</label>
-        <textarea id="description" placeholder="설명을 입력하세요"></textarea>
-    </div>
-
-    <button id="upload-btn" onclick="handleUpload()">Moa에 등록하기</button>
-    <div id="status" class="status-msg"></div>
+    <button class="btn-submit" onclick="handleUpload()">저장소에 최종 등록</button>
+    <div id="status"></div>
 </div>
 
 <script>
-    // 1. 저장소 정보 설정
-    const repo = "alwzsoft/source_only"; 
-    let selectedFile = null;
-
-    // 이미지 선택 시 미리보기 로직
-    document.getElementById('image-upload').onchange = function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        selectedFile = file;
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            const preview = document.getElementById('preview');
-            const container = document.getElementById('preview-container');
-            preview.src = event.target.result;
-            container.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+    window.onload = () => {
+        document.getElementById('ghToken').value = localStorage.getItem('moa_gh_token') || '';
+        document.getElementById('geminiKey').value = localStorage.getItem('moa_gemini_key') || '';
     };
 
-    function setStatus(msg, type = 'loading') {
-        const statusDiv = document.getElementById('status');
-        statusDiv.textContent = msg;
-        statusDiv.className = `status-msg ${type}`;
-    }
+    const photoInput = document.getElementById('photoInput');
+    const preview = document.getElementById('preview');
+    let selectedFile = null;
+    let exifData = {};
 
-    // 업로드 메인 핸들러
-    async function handleUpload() {
-        const token = document.getElementById('token').value.trim();
-        const title = document.getElementById('title').value.trim();
-        const tags = document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t);
-        const desc = document.getElementById('description').value.trim();
-        const uploadBtn = document.getElementById('upload-btn');
+    photoInput.onchange = (e) => {
+        selectedFile = e.target.files[0];
+        if (!selectedFile) return;
 
-        if (!selectedFile || !token || !title) return alert("필수 항목을 모두 채워주세요.");
+        const reader = new FileReader();
+        reader.onload = (ex) => {
+            preview.src = ex.target.result;
+            preview.style.display = 'block';
+            document.getElementById('aiSection').style.display = 'block';
+            document.getElementById('proposals').innerHTML = '';
+        };
+        reader.readAsDataURL(selectedFile);
+
+        EXIF.getData(selectedFile, function() {
+            const lat = EXIF.getTag(this, "GPSLatitude");
+            const lon = EXIF.getTag(this, "GPSLongitude");
+            if (lat && lon) {
+                exifData.lat = lat[0] + lat[1]/60 + lat[2]/3600;
+                exifData.lon = lon[0] + lon[1]/60 + lon[2]/3600;
+            }
+        });
+    };
+
+    async function askGemini() {
+        const apiKey = document.getElementById('geminiKey').value;
+        if (!apiKey) return alert("Gemini API Key를 입력해주세요.");
+        localStorage.setItem('moa_gemini_key', apiKey);
+
+        const status = document.getElementById('status');
+        status.innerHTML = "<span class='loading'>AI가 시선을 분석 중입니다...</span>";
 
         try {
-            uploadBtn.disabled = true;
-            setStatus("이미지 업로드 중...");
+            const base64Img = await toBase64(selectedFile);
+            const prompt = `사진 위치: 위도 ${exifData.lat || '정보없음'}, 경도 ${exifData.lon || '정보없음'}. 
+            Moa 갤러리 컨셉(따뜻함, 정갈함, 기록)에 맞춰 포스팅 후보 3개를 JSON으로 제안해.
+            형식: {"proposals": [{"title": "제목", "tags": "태그1, 태그2", "desc": "감성문구"}]}`;
 
-            const now = new Date();
-            const timestamp = now.getTime();
-            const extension = selectedFile.name.split('.').pop();
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [
+                        { text: prompt },
+                        { inline_data: { mime_type: "image/jpeg", data: base64Img.split(',')[1] } }
+                    ]}]
+                })
+            });
+
+            const resData = await response.json();
+            const textResponse = resData.candidates[0].content.parts[0].text;
+            const cleanJson = JSON.parse(textResponse.replace(/```json|```/g, ''));
             
-            // 💡 경로 수정: gallery/ 폴더 내부로 지정
-            const fileName = `gallery/public/picture/${timestamp}.${extension}`;
-
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(selectedFile);
-            reader.onloadend = async () => {
-                const base64Data = btoa(new Uint8Array(reader.result).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-                
-                // 1. 이미지 업로드
-                const imgRes = await uploadToGithub(token, fileName, base64Data, `Upload: ${title}`);
-                if (!imgRes.ok) throw new Error("이미지 업로드 실패");
-
-                setStatus("데이터 정보 업데이트 중...");
-                
-                // 2. JSON 데이터 업데이트 (gallery/ 경로 전달)
-                await updateJsonData(token, {
-                    img: `picture/${timestamp}.${extension}`, // 사이트에서 불러올 때의 상대 경로
-                    title: title,
-                    tags: tags,
-                    description: desc,
-                    date: now.toISOString().split('T')[0]
-                });
-
-                setStatus("기록 성공!", "success");
-                alert("성공적으로 등록되었습니다! 잠시 후 홈페이지에 반영됩니다.");
-                location.reload();
-            };
+            displayProposals(cleanJson.proposals);
+            status.textContent = "가장 어울리는 문구를 골라보세요.";
         } catch (err) {
-            setStatus(`오류: ${err.message}`, "error");
-            console.error(err);
-            uploadBtn.disabled = false;
+            status.textContent = "AI 분석 실패. API 키나 이미지를 확인하세요.";
         }
     }
 
-    // GitHub API 호출 공통 함수
-    async function uploadToGithub(token, path, content, message, sha = null) {
-        const url = `https://api.github.com/repos/${repo}/contents/${path}`;
-        const body = { 
-            message, 
-            content,
-            branch: "main" // main 브랜치 고정
-        };
-        if (sha) body.sha = sha;
-
-        return fetch(url, {
-            method: 'PUT',
-            headers: { 
-                'Authorization': `token ${token}`, 
-                'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify(body)
+    function displayProposals(proposals) {
+        const container = document.getElementById('proposals');
+        container.innerHTML = '';
+        proposals.slice(0, 3).forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'proposal-card';
+            div.innerHTML = `<strong>${p.title}</strong><br><span style='color:#888; font-size:0.9em;'>${p.desc}</span>`;
+            div.onclick = () => {
+                document.getElementById('title').value = p.title;
+                document.getElementById('tags').value = p.tags;
+                document.getElementById('description').value = p.desc;
+            };
+            container.appendChild(div);
         });
     }
 
-    // JSON 데이터 읽어서 수정 후 저장하는 함수
-    async function updateJsonData(token, newData) {
-        // 💡 경로 수정: gallery/ 폴더 내부의 JSON 지정
-        const path = 'gallery/public/data/pictures.json';
-        const url = `https://api.github.com/repos/${repo}/contents/${path}?t=${Date.now()}`;
-        
-        let currentList = [];
-        let sha = null;
+    async function handleUpload() {
+        const token = document.getElementById('ghToken').value;
+        if (!token || !selectedFile) return alert("토큰과 사진이 필요합니다.");
+        localStorage.setItem('moa_gh_token', token);
 
-        const res = await fetch(url, { 
-            headers: { 'Authorization': `token ${token}` } 
-        });
-        
-        if (res.ok) {
+        const status = document.getElementById('status');
+        status.innerHTML = "<span class='loading'>GitHub에 안전하게 기록 중...</span>";
+
+        const repo = "alwzsoft/source_only";
+        const fileName = Date.now() + ".jpg";
+        const imgPath = `gallery/public/picture/${fileName}`;
+        const jsonPath = `gallery/public/data/pictures.json`;
+
+        try {
+            // 1. 이미지 업로드
+            const imgBase64 = (await toBase64(selectedFile)).split(',')[1];
+            await fetch(`https://api.github.com/repos/${repo}/contents/${imgPath}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${token}` },
+                body: JSON.stringify({ message: "Post photo via Moa Admin", content: imgBase64 })
+            });
+
+            // 2. JSON 업데이트 (Cache 무시 적용)
+            const res = await fetch(`https://api.github.com/repos/${repo}/contents/${jsonPath}?v=${Date.now()}`, {
+                headers: { 'Authorization': `token ${token}` }
+            });
             const fileData = await res.json();
-            sha = fileData.sha;
-            // 한글 깨짐 방지 디코딩
-            const currentContent = decodeURIComponent(atob(fileData.content).split('').map(c => 
-                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-            currentList = JSON.parse(currentContent);
+            const currentContent = decodeURIComponent(atob(fileData.content).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+            let currentList = JSON.parse(currentContent);
+
+            currentList.unshift({
+                img: `picture/${fileName}`,
+                title: document.getElementById('title').value,
+                date: new Date().toISOString().split('T')[0],
+                tags: document.getElementById('tags').value.split(',').map(t => t.trim()),
+                description: document.getElementById('description').value
+            });
+
+            const updatedContent = btoa(encodeURIComponent(JSON.stringify(currentList, null, 2)).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)));
+
+            await fetch(`https://api.github.com/repos/${repo}/contents/${jsonPath}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${token}` },
+                body: JSON.stringify({ message: "Update pictures.json", content: updatedContent, sha: fileData.sha })
+            });
+
+            status.innerHTML = "✅ 포스팅 완료! 잠시 후 갤러리에 반영됩니다.";
+            setTimeout(() => location.reload(), 2000);
+        } catch (err) {
+            status.textContent = "업로드 오류가 발생했습니다.";
         }
+    }
 
-        currentList.unshift(newData); // 최신 데이터를 맨 앞으로
-        
-        // 인코딩 후 저장
-        const updatedJson = JSON.stringify(currentList, null, 2);
-        const updatedContent = btoa(encodeURIComponent(updatedJson).replace(/%([0-9A-F]{2})/g, 
-            (match, p1) => String.fromCharCode('0x' + p1)));
-
-        const updateRes = await uploadToGithub(token, path, updatedContent, "Update pictures.json via Admin", sha);
-        if (!updateRes.ok) throw new Error("JSON 업데이트 실패");
+    function toBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
     }
 </script>
+
 </body>
 </html>
