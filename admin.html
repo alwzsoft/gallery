@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moa Admin - 기록하기</title>
+    <style>
+        body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; padding: 20px; background: #f9f8f5; color: #333; }
+        .admin-card { max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; margin-bottom: 20px; font-size: 1.5rem; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        textarea { height: 100px; resize: vertical; }
+        button { width: 100%; padding: 15px; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: background 0.2s; }
+        button:hover { background: #555; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #preview-container { margin-top: 20px; text-align: center; display: none; }
+        #preview { max-width: 100%; border-radius: 8px; border: 1px solid #eee; }
+        .status-msg { margin-top: 15px; text-align: center; font-size: 0.9rem; min-height: 1.2rem; }
+        .loading { color: #666; }
+        .error { color: #d9534f; }
+        .success { color: #5cb85c; }
+    </style>
+</head>
+<body>
+
+<div class="admin-card">
+    <h2>Moa's Moment 기록</h2>
+    
+    <div class="form-group">
+        <label for="token">GitHub Personal Access Token</label>
+        <input type="password" id="token" placeholder="ghp_..." autocomplete="current-password">
+    </div>
+
+    <div class="form-group">
+        <label for="image-upload">사진 선택</label>
+        <input type="file" id="image-upload" accept="image/*">
+    </div>
+
+    <div id="preview-container">
+        <img id="preview">
+    </div>
+
+    <div class="form-group">
+        <label for="title">제목</label>
+        <input type="text" id="title" placeholder="사진 제목을 입력하세요">
+    </div>
+
+    <div class="form-group">
+        <label for="tags">태그</label>
+        <input type="text" id="tags" placeholder="태그 (쉼표로 구분, 예: 일상, 풍경)">
+    </div>
+
+    <div class="form-group">
+        <label for="description">설명</label>
+        <textarea id="description" placeholder="사진에 대한 설명을 적어주세요"></textarea>
+    </div>
+
+    <button id="upload-btn" onclick="handleUpload()">Moa에 등록하기</button>
+    <div id="status" class="status-msg"></div>
+</div>
+
+<script>
+    const repo = "alwzsoft/source_only";
+    let selectedFile = null;
+
+    // 이미지 선택 시 미리보기
+    document.getElementById('image-upload').onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const preview = document.getElementById('preview');
+            const container = document.getElementById('preview-container');
+            preview.src = event.target.result;
+            container.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    };
+
+    function setStatus(msg, type = 'loading') {
+        const statusDiv = document.getElementById('status');
+        statusDiv.textContent = msg;
+        statusDiv.className = `status-msg ${type}`;
+    }
+
+    // 깃허브 업로드 메인 함수
+    async function handleUpload() {
+        const token = document.getElementById('token').value.trim();
+        const title = document.getElementById('title').value.trim();
+        const tags = document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t);
+        const desc = document.getElementById('description').value.trim();
+        const uploadBtn = document.getElementById('upload-btn');
+
+        if (!selectedFile) return alert("사진을 선택해주세요.");
+        if (!token) return alert("GitHub 토큰을 입력해주세요.");
+        if (!title) return alert("제목을 입력해주세요.");
+
+        try {
+            uploadBtn.disabled = true;
+            setStatus("이미지 업로드 중...");
+
+            // 1. 파일명 생성 (날짜_시간 기반)
+            const now = new Date();
+            const timestamp = now.getFullYear() + 
+                String(now.getMonth() + 1).padStart(2, '0') + 
+                String(now.getDate()).padStart(2, '0') + "_" + 
+                String(now.getHours()).padStart(2, '0') + 
+                String(now.getMinutes()).padStart(2, '0') + 
+                String(now.getSeconds()).padStart(2, '0');
+            const extension = selectedFile.name.split('.').pop();
+            const fileName = `public/picture/${timestamp}.${extension}`;
+
+            // 2. 이미지 파일 업로드
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(selectedFile);
+            reader.onloadend = async () => {
+                const base64Data = btoa(
+                    new Uint8Array(reader.result)
+                        .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                
+                const imgRes = await uploadToGithub(token, fileName, base64Data, `Upload photo: ${title}`);
+                if (!imgRes.ok) {
+                    const error = await imgRes.json();
+                    throw new Error(`이미지 업로드 실패: ${error.message}`);
+                }
+
+                // 3. JSON 데이터 업데이트
+                setStatus("데이터 정보 업데이트 중...");
+                await updateJsonData(token, {
+                    img: fileName.replace('public/', ''), // JSON에는 public/을 뺀 경로 저장
+                    title: title,
+                    tags: tags,
+                    description: desc,
+                    date: now.toISOString().split('T')[0]
+                });
+
+                setStatus("성공적으로 등록되었습니다!", "success");
+                alert("성공적으로 기록되었습니다! 빌드 완료 후 반영까지 1~2분 정도 걸릴 수 있습니다.");
+                location.reload();
+            };
+        } catch (err) {
+            console.error(err);
+            setStatus(`오류 발생: ${err.message}`, "error");
+            alert(`오류 발생: ${err.message}`);
+            uploadBtn.disabled = false;
+        }
+    }
+
+    // 깃허브 API 호출 함수
+    async function uploadToGithub(token, path, content, message, sha = null) {
+        const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+        const body = { message, content };
+        if (sha) body.sha = sha;
+
+        return fetch(url, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `token ${token}`, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(body)
+        });
+    }
+
+    // JSON 파일 불러와서 새 데이터 추가 후 저장
+    async function updateJsonData(token, newData) {
+        const path = 'public/data/pictures.json';
+        const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+        
+        // A. 기존 파일 가져오기
+        const res = await fetch(url, { 
+            headers: { 'Authorization': `token ${token}`, 'Cache-Control': 'no-cache' } 
+        });
+        
+        if (!res.ok) throw new Error("JSON 데이터를 불러올 수 없습니다.");
+        
+        const fileData = await res.json();
+        // Base64 디코딩 (한글 깨짐 방지: UTF-8 처리)
+        const currentContent = decodeURIComponent(atob(fileData.content).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        
+        const currentList = JSON.parse(currentContent);
+
+        // B. 데이터 추가 (맨 앞에)
+        currentList.unshift(newData);
+
+        // C. 다시 인코딩하여 저장 (한글 깨짐 방지: UTF-8 처리)
+        const updatedJson = JSON.stringify(currentList, null, 2);
+        const updatedContent = btoa(encodeURIComponent(updatedJson).replace(/%([0-9A-F]{2})/g,
+            function(match, p1) {
+                return String.fromCharCode('0x' + p1);
+            }
+        ));
+
+        const updateRes = await uploadToGithub(token, path, updatedContent, "Update pictures.json", fileData.sha);
+        if (!updateRes.ok) {
+            const error = await updateRes.json();
+            throw new Error(`JSON 업데이트 실패: ${error.message}`);
+        }
+    }
+</script>
+</body>
+</html>
